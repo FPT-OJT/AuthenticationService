@@ -19,7 +19,6 @@ go.work.sum
 
 .env
 .env.*
-*.pem
 *.key
 *.cert
 credentials/

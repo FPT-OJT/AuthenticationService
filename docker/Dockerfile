@@ -17,6 +17,7 @@ WORKDIR /app
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 
 COPY --from=builder /app/auth-service .
+COPY --from=builder /app/private_key.pem .
 
 EXPOSE 8081
 

@@ -6,8 +6,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	dbAdapter "authentication-service.com/internal/adapters/database"
+	jwtadapter "authentication-service.com/internal/adapters/jwt_adapter"
+	dbAdapter "authentication-service.com/internal/infrastructure/database"
 	"authentication-service.com/internal/pkg"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 func main() {
@@ -23,7 +25,24 @@ func main() {
 		ConnMaxLifetime: pkg.GetEnvAsInt("POSTGRESQL_CONN_MAX_LIFETIME", 3600),
 	}
 
-	// Initialize PostgreSQL
+	privateKeyPath := pkg.GetEnvAsString("JWT_PRIVATE_KEY_PATH", "private_key.pem")
+	serverPort := pkg.GetEnvAsString("SERVER_PORT", "8080")
+
+	keyBytes, err := os.ReadFile(privateKeyPath)
+	if err != nil {
+		log.Fatalf("FAIL-FAST: Cannot read file Private Key tại %s: %v", privateKeyPath, err)
+	}
+	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM(keyBytes)
+	if err != nil {
+		log.Fatalf("FAIL-FAST: Error format PEM of Private Key: %v", err)
+	}
+	tokenGen := jwtadapter.NewRSAJWTGenerator(privateKey)
+
+	log.Printf("Jwt private key: %v", tokenGen)
+	log.Printf("Server will start on port %s\n", serverPort)
+
+	log.Printf("Loaded RSA private key from %s\n", privateKeyPath)
+
 	db, err := dbAdapter.InitPostgres(pgConfig)
 	if err != nil {
 		log.Fatal("Failed to connect to PostgreSQL: " + err.Error())
