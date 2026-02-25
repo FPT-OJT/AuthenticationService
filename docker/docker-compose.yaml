@@ -1,0 +1,76 @@
+name: authentication-backend
+
+services:
+  authentication-service:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: authentication-service
+    networks:
+      - default
+      - ojt_shared_network
+    restart: always
+    env_file:
+      - ../.env
+    environment:
+      - POSTGRESQL_HOST=auth-postgres
+      - POSTGRESQL_EXTERNAL_PORT=5432
+      - REDIS_HOST=auth-redis
+      - REDIS_EXTERNAL_PORT=6379
+      - SERVER_PORT=8081
+      - RABBITMQ_URL=amqp://guest:guest@auth-rabbitmq:5672/
+    ports:
+      - "${AUTH_SERVER_PORT:-8081}:8081"
+    depends_on:
+      auth-postgres:
+        condition: service_healthy
+      auth-redis:
+        condition: service_healthy
+
+  auth-postgres:
+    image: postgres:18-alpine
+    container_name: ${AUTH_POSTGRES_CONTAINER_NAME:-auth-postgres}
+    networks:
+      - default
+      - ojt_shared_network
+    restart: always
+    environment:
+      POSTGRES_DB: ${AUTH_POSTGRES_DB}
+      POSTGRES_PASSWORD: ${AUTH_POSTGRES_PASSWORD}
+      POSTGRES_USER: ${AUTH_POSTGRES_USER}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - auth-postgres-data:/var/lib/postgresql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${AUTH_POSTGRES_USER} -d ${AUTH_POSTGRES_DB}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  auth-redis:
+    image: redis:7-alpine
+    container_name: auth-redis
+    networks:
+      - default
+      - ojt_shared_network
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - auth-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  auth-postgres-data:
+  auth-redis-data:
+
+networks:
+  ojt_shared_network:
+    external: true
