@@ -1,8 +1,12 @@
+-- +goose Up
+-- SQL in section 'Up' is executed when this migration is applied
+
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_name VARCHAR(255) UNIQUE,
     google_id VARCHAR(255) UNIQUE,
     email VARCHAR(255) UNIQUE,
+    password VARCHAR(255),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP
@@ -14,8 +18,6 @@ CREATE INDEX idx_users_user_name ON users(user_name);
 CREATE INDEX idx_users_google_id ON users(google_id);
 
 INSERT INTO users (id, user_name, google_id, email, password, created_at, updated_at, deleted_at) VALUES
-('a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d', 'admin_system', NULL, 'admin@fpt.edu.vn', '$2a$10$GiGMU5Dhf47Ln6LUVQ9Wv.6pVumI3BqigTVCOZ502vpxdcJBAC8eS', 'Admin', 'System', '2025-01-15 08:30:00', '2025-01-15 08:30:00', NULL),
-
 ('e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b', 'john_smith', NULL, 'john.smith@gmail.com', '$2a$10$GiGMU5Dhf47Ln6LUVQ9Wv.6pVumI3BqigTVCOZ502vpxdcJBAC8eS',  '2024-11-20 14:30:00', '2025-01-20 16:45:00', NULL),
 ('f6a7b8c9-d0e1-4f2a-3b4c-5d6e7f8a9b0c', 'sarah_johnson', NULL, 'sarah.johnson@outlook.com', '$2a$10$GiGMU5Dhf47Ln6LUVQ9Wv.6pVumI3BqigTVCOZ502vpxdcJBAC8eS',  '2024-12-01 09:00:00', '2025-01-21 10:30:00', NULL),
 ('a7b8c9d0-e1f2-4a3b-4c5d-6e7f8a9b0c1d', 'michael_brown', NULL, 'michael.brown@yahoo.com', '$2a$10$GiGMU5Dhf47Ln6LUVQ9Wv.6pVumI3BqigTVCOZ502vpxdcJBAC8eS',  '2024-12-05 13:15:00', '2025-01-22 08:20:00', NULL),
@@ -35,3 +37,8 @@ INSERT INTO users (id, user_name, google_id, email, password, created_at, update
 ('c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f', 'anthony_clark', NULL, 'anthony.clark@gmail.com',  '$2a$10$GiGMU5Dhf47Ln6LUVQ9Wv.6pVumI3BqigTVCOZ502vpxdcJBAC8eS',  '2025-01-20 09:15:00', '2025-01-28 16:20:00', NULL),
 ('d2e3f4a5-b6c7-4d8e-9f0a-1b2c3d4e5f6a', 'nicole_rodriguez', NULL, 'nicole.rodriguez@outlook.com',  '$2a$10$GiGMU5Dhf47Ln6LUVQ9Wv.6pVumI3BqigTVCOZ502vpxdcJBAC8eS',  '2025-01-22 11:30:00', '2025-01-28 17:10:00', NULL),
 ('e3f4a5b6-c7d8-4e9f-0a1b-2c3d4e5f6a7b', 'william_lewis', NULL, 'william.lewis@gmail.com',  '$2a$10$GiGMU5Dhf47Ln6LUVQ9Wv.6pVumI3BqigTVCOZ502vpxdcJBAC8eS',  '2025-01-24 14:45:00', '2025-01-28 18:00:00', NULL);
+
+-- +goose Down
+-- SQL in section 'Down' is executed when this migration is rolled back
+
+DROP TABLE IF EXISTS users;

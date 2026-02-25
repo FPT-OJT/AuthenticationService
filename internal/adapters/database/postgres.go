@@ -2,27 +2,30 @@ package database
 
 import (
 	"fmt"
-	"log"
 	"time"
 
-	"authentication-service.com/internal/pkg"
+	"authentication-service.com/migrations"
+	"github.com/pressly/goose/v3"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
 
-var DB *gorm.DB
+type PostgresConfig struct {
+	Host            string
+	Port            string
+	User            string
+	Password        string
+	DBName          string
+	MaxIdleConns    int
+	MaxOpenConns    int
+	ConnMaxLifetime int // seconds
+}
 
-func InitPostgres() (*gorm.DB, error) {
-	host := pkg.GetEnvAsString("POSTGRESQL_HOST", "localhost")
-	port := pkg.GetEnvAsString("POSTGRESQL_EXTERNAL_PORT", "5432")
-	user := pkg.GetEnvAsString("AUTH_POSTGRES_USER", "postgres")
-	password := pkg.GetEnvAsString("AUTH_POSTGRES_PASSWORD", "postgres")
-	dbname := pkg.GetEnvAsString("AUTH_POSTGRES_DB", "auth_db")
-
+func InitPostgres(cfg PostgresConfig) (*gorm.DB, error) {
 	dsn := fmt.Sprintf(
 		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Ho_Chi_Minh",
-		host, user, password, dbname, port,
+		cfg.Host, cfg.User, cfg.Password, cfg.DBName, cfg.Port,
 	)
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
@@ -31,7 +34,6 @@ func InitPostgres() (*gorm.DB, error) {
 			return time.Now().UTC()
 		},
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to postgres: %w", err)
 	}
@@ -41,25 +43,32 @@ func InitPostgres() (*gorm.DB, error) {
 		return nil, fmt.Errorf("failed to get database instance: %w", err)
 	}
 
-	sqlDB.SetMaxIdleConns(10)
-	sqlDB.SetMaxOpenConns(100)
-	sqlDB.SetConnMaxLifetime(time.Hour)
+	sqlDB.SetMaxIdleConns(cfg.MaxIdleConns)
+	sqlDB.SetMaxOpenConns(cfg.MaxOpenConns)
+	sqlDB.SetConnMaxLifetime(time.Duration(cfg.ConnMaxLifetime) * time.Second)
 
-	DB = db
-	log.Println("PostgreSQL connected successfully")
+	if err := runMigrations(db); err != nil {
+		return nil, fmt.Errorf("failed to run migrations: %w", err)
+	}
+
 	return db, nil
 }
 
-func ClosePostgres() error {
-	if DB != nil {
-		sqlDB, err := DB.DB()
-		if err != nil {
-			return fmt.Errorf("failed to get database instance: %w", err)
-		}
-		if err := sqlDB.Close(); err != nil {
-			return fmt.Errorf("failed to close postgres connection: %w", err)
-		}
-		log.Println("PostgreSQL connection closed")
+func runMigrations(db *gorm.DB) error {
+	sqlDB, err := db.DB()
+	if err != nil {
+		return err
 	}
+
+	goose.SetBaseFS(migrations.FS)
+
+	if err := goose.SetDialect("postgres"); err != nil {
+		return err
+	}
+
+	if err := goose.Up(sqlDB, "."); err != nil {
+		return err
+	}
+
 	return nil
 }
