@@ -28,3 +28,5 @@ credentials/
 tmp/
 README.md
 docs/
+
+Makefile

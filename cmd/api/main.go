@@ -2,6 +2,9 @@ package main
 
 import (
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 
 	dbAdapter "authentication-service.com/internal/adapters/database"
 )
@@ -30,4 +33,10 @@ func main() {
 	log.Println("Database connections established successfully")
 	log.Printf("PostgreSQL: %v\n", postgres)
 	log.Printf("Redis: %v\n", redis)
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+
+	<-stop
+	log.Println("Shutting down gracefully...")
 }

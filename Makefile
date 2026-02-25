@@ -1,3 +1,6 @@
+up:
+	podman compose -f docker/docker-compose.yaml --env-file .env up -d
+
 up-b:
 	podman compose -f docker/docker-compose.yaml --env-file .env up -d --build
 down-v:
