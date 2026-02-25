@@ -10,13 +10,17 @@ import (
 type UserORM struct {
 	ID        string `gorm:"primaryKey;type:uuid"`
 	Email     string
-	Username  string
+	Username  string `gorm:"column:user_name"`
 	GoogleID  string
 	Role      string `gorm:"default:'CUSTOMER'"`
 	Password  string
 	CreatedAt time.Time `gorm:"not null;autoCreateTime"`
 	UpdatedAt time.Time `gorm:"not null;autoUpdateTime"`
 	DeletedAt gorm.DeletedAt
+}
+
+func (UserORM) TableName() string {
+	return "users"
 }
 
 func (orm *UserORM) ToDomain() *domain.User {

@@ -1,18 +1,20 @@
 package handlers
 
 type LoginRequest struct {
-	Username string `json:"username" validate:"required"`
-	Password string `json:"password" validate:"required"`
+	UsernameOrEmail string `json:"username"`
+	Password        string `json:"password"`
+	RememberMe      bool   `json:"rememberMe"`
 }
 
 type LoginResponse struct {
-	StatusCode int    `json:"status_code"`
-	Message    string `json:"message"`
-	Data       *Data  `json:"data,omitempty"`
+	StatusCode int        `json:"statusCode"`
+	Message    string     `json:"message"`
+	Data       *TokenData `json:"data,omitempty"`
 }
 
-type Data struct {
-	UserID       string `json:"user_id"`
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
+type TokenData struct {
+	AccessToken  string `json:"accessToken"`
+	RefreshToken string `json:"refreshToken"`
+	UserID       string `json:"userId"`
+	Role         string `json:"role"`
 }
