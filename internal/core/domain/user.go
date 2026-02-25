@@ -5,5 +5,6 @@ type User struct {
 	Username string
 	Email    string
 	GoogleID string
+	Role     string
 	Password string
 }
