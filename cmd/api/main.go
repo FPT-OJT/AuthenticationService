@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"log"
 	"net/http"
 	"os"
@@ -25,18 +26,21 @@ import (
 )
 
 func main() {
-	privateKeyPath := pkg.GetEnvAsString("JWT_PRIVATE_KEY_PATH", "private_key.pem")
+	privateKeyB64 := pkg.GetEnvAsString("PRIVATE_KEY", "")
 	serverPort := pkg.GetEnvAsString("SERVER_PORT", "8080")
 
-	keyBytes, err := os.ReadFile(privateKeyPath)
+	if privateKeyB64 == "" {
+		log.Fatal("FAIL-FAST: PRIVATE_KEY environment variable is required")
+	}
+	keyBytes, err := base64.StdEncoding.DecodeString(privateKeyB64)
 	if err != nil {
-		log.Fatalf("FAIL-FAST: Cannot read file Private Key tại %s: %v", privateKeyPath, err)
+		log.Fatalf("FAIL-FAST: Cannot base64-decode PRIVATE_KEY: %v", err)
 	}
 	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM(keyBytes)
 	if err != nil {
 		log.Fatalf("FAIL-FAST: Error format PEM of Private Key: %v", err)
 	}
-	log.Printf("Loaded RSA private key from %s\n", privateKeyPath)
+	log.Println("Loaded RSA private key from PRIVATE_KEY env")
 
 	// Load Redis configuration
 	redisConfig := dbAdapter.RedisConfig{
