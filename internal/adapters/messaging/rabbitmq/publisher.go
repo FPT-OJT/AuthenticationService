@@ -169,5 +169,6 @@ func (p *userEventPublisher) PublishUserCreated(ctx context.Context, event domai
 		return fmt.Errorf("rabbitmq: failed to publish UserCreatedEvent: %w", err)
 	}
 
+	log.Printf("rabbitmq: published message exchange=%q routingKey=%q body=%s", p.exchange, p.routingKey, body)
 	return nil
 }

@@ -10,10 +10,10 @@ import (
 
 type UserORM struct {
 	ID        string `gorm:"primaryKey;type:uuid"`
-	Email     string
-	Username  string `gorm:"column:user_name"`
-	GoogleID  string `gorm:"column:google_id"`
-	Role      string `gorm:"default:'CUSTOMER'"`
+	Email     *string
+	Username  *string `gorm:"column:user_name"`
+	GoogleID  *string `gorm:"column:google_id"`
+	Role      string  `gorm:"default:'CUSTOMER'"`
 	Password  string
 	CreatedAt time.Time `gorm:"not null;autoCreateTime"`
 	UpdatedAt time.Time `gorm:"not null;autoUpdateTime"`
@@ -32,22 +32,46 @@ func (UserORM) TableName() string {
 }
 
 func (orm *UserORM) ToDomain() *domain.User {
+	googleID := ""
+	email := ""
+	username := ""
+	if orm.Email != nil {
+		email = *orm.Email
+	}
+	if orm.Username != nil {
+		username = *orm.Username
+	}
+	if orm.GoogleID != nil {
+		googleID = *orm.GoogleID
+	}
 	return &domain.User{
 		ID:       orm.ID,
-		Email:    orm.Email,
-		Username: orm.Username,
-		GoogleID: orm.GoogleID,
+		Email:    email,
+		Username: username,
+		GoogleID: googleID,
 		Role:     orm.Role,
 		Password: orm.Password,
 	}
 }
 
 func FromDomain(user *domain.User) *UserORM {
+	var googleID *string
+	if user.GoogleID != "" {
+		googleID = &user.GoogleID
+	}
+	var email *string
+	if user.Email != "" {
+		email = &user.Email
+	}
+	var username *string
+	if user.Username != "" {
+		username = &user.Username
+	}
 	return &UserORM{
 		ID:       user.ID,
-		Email:    user.Email,
-		Username: user.Username,
-		GoogleID: user.GoogleID,
+		Email:    email,
+		Username: username,
+		GoogleID: googleID,
 		Role:     user.Role,
 		Password: user.Password,
 	}
