@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"authentication-service.com/internal/core/domain"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -11,12 +12,19 @@ type UserORM struct {
 	ID        string `gorm:"primaryKey;type:uuid"`
 	Email     string
 	Username  string `gorm:"column:user_name"`
-	GoogleID  string
+	GoogleID  string `gorm:"column:google_id"`
 	Role      string `gorm:"default:'CUSTOMER'"`
 	Password  string
 	CreatedAt time.Time `gorm:"not null;autoCreateTime"`
 	UpdatedAt time.Time `gorm:"not null;autoUpdateTime"`
 	DeletedAt gorm.DeletedAt
+}
+
+func (u *UserORM) BeforeCreate(tx *gorm.DB) error {
+	if u.ID == "" {
+		u.ID = uuid.NewString()
+	}
+	return nil
 }
 
 func (UserORM) TableName() string {
@@ -36,13 +44,11 @@ func (orm *UserORM) ToDomain() *domain.User {
 
 func FromDomain(user *domain.User) *UserORM {
 	return &UserORM{
-		ID:        user.ID,
-		Email:     user.Email,
-		Username:  user.Username,
-		GoogleID:  user.GoogleID,
-		Role:      user.Role,
-		Password:  user.Password,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:       user.ID,
+		Email:    user.Email,
+		Username: user.Username,
+		GoogleID: user.GoogleID,
+		Role:     user.Role,
+		Password: user.Password,
 	}
 }

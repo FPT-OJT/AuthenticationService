@@ -6,4 +6,7 @@ up-b:
 down-v:
 	podman compose -f docker/docker-compose.yaml --env-file .env down -v
 
-.PHONY: up-b down-v
+tidy:
+	go mod tidy
+
+.PHONY: up up-b down-v tidy

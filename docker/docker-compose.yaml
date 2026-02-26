@@ -18,7 +18,7 @@ services:
       - REDIS_HOST=auth-redis
       - REDIS_EXTERNAL_PORT=6379
       - SERVER_PORT=8081
-      - RABBITMQ_URL=amqp://guest:guest@auth-rabbitmq:5672/
+      - RABBITMQ_URL=amqp://${RABBITMQ_ADMIN_USER:-admin}:${RABBITMQ_ADMIN_PASSWORD:-password}@rabbitmq:5672/
     ports:
       - "${AUTH_SERVER_PORT:-8081}:8081"
     depends_on:

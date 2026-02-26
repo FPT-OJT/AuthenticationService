@@ -6,17 +6,21 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"reflect"
 	"syscall"
 	"time"
 
-	jwtadapter "authentication-service.com/internal/adapters/jwt_adapter"
-	repositories "authentication-service.com/internal/adapters/repositories"
 	"authentication-service.com/internal/adapters/handlers"
+	jwtadapter "authentication-service.com/internal/adapters/jwt_adapter"
+	messagingrabbitmq "authentication-service.com/internal/adapters/messaging/rabbitmq"
+	repositories "authentication-service.com/internal/adapters/repositories"
+	services_impl "authentication-service.com/internal/core/services/impl"
 	dbAdapter "authentication-service.com/internal/infrastructure/database"
 	"authentication-service.com/internal/infrastructure/routes"
-	services_impl "authentication-service.com/internal/core/services/impl"
 	"authentication-service.com/internal/pkg"
+	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt/v5"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 func main() {
@@ -89,6 +93,42 @@ func main() {
 	}()
 	log.Printf("PostgreSQL: Connected to %s:%s/%s\n", pgConfig.Host, pgConfig.Port, pgConfig.DBName)
 
+	// Connect to RabbitMQ
+	rabbitMQURL := pkg.GetEnvAsString("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
+	rabbitExchange := pkg.GetEnvAsString("RABBITMQ_EXCHANGE", "")
+	newUsersQueue := pkg.GetEnvAsString("RABBITMQ_NEW_USERS_QUEUE", "new_users_queue")
+	publishTimeout := time.Duration(pkg.GetEnvAsInt("RABBITMQ_PUBLISH_TIMEOUT_SECONDS", 3)) * time.Second
+
+	{
+		setupConn, err := amqp.Dial(rabbitMQURL)
+		if err != nil {
+			log.Fatalf("Failed to connect to RabbitMQ for setup: %v", err)
+		}
+		setupCh, err := setupConn.Channel()
+		if err != nil {
+			log.Fatalf("Failed to open RabbitMQ setup channel: %v", err)
+		}
+		if _, err = setupCh.QueueDeclare(newUsersQueue, true, false, false, false, nil); err != nil {
+			log.Fatalf("Failed to declare RabbitMQ queue: %v", err)
+		}
+		setupCh.Close()
+		setupConn.Close()
+		log.Printf("RabbitMQ: queue %q declared\n", newUsersQueue)
+	}
+
+	userEventPublisher, err := messagingrabbitmq.NewUserEventPublisher(rabbitMQURL, rabbitExchange, newUsersQueue, publishTimeout)
+	if err != nil {
+		log.Fatalf("Failed to initialize RabbitMQ publisher: %v", err)
+	}
+	defer func() {
+		if err := userEventPublisher.Close(); err != nil {
+			log.Println("Error closing RabbitMQ publisher:", err)
+		} else {
+			log.Println("RabbitMQ publisher closed")
+		}
+	}()
+	log.Printf("RabbitMQ: publisher ready, exchange=%q routingKey=%q\n", rabbitExchange, newUsersQueue)
+
 	// Wire dependencies
 	refreshTokenRepo := repositories.NewRedisRefreshTokenRepository(redisClient)
 	userRepo := repositories.NewUserRepository(db)
@@ -105,8 +145,17 @@ func main() {
 		refreshTokenRepo,
 	)
 
-	tokenService := services_impl.NewTokenService(userRepo, tokenGen)
-	tokenHandler := handlers.NewTokenHandler(tokenService)
+	tokenService := services_impl.NewTokenService(userRepo, tokenGen, userEventPublisher)
+	validate := validator.New()
+	// Use json tag names in validation errors (e.g. "email" instead of "Email")
+	validate.RegisterTagNameFunc(func(fld reflect.StructField) string {
+		name := fld.Tag.Get("json")
+		if name == "" || name == "-" {
+			return fld.Name
+		}
+		return name
+	})
+	tokenHandler := handlers.NewTokenHandler(tokenService, validate)
 
 	// Register routes
 	mux := http.NewServeMux()
