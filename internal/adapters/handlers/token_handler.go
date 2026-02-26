@@ -154,6 +154,45 @@ func (h *TokenHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// POST /public/auth/login/google?googleToken=<id_token>
+func (h *TokenHandler) LoginWithGoogle(w http.ResponseWriter, r *http.Request) {
+	googleToken := r.URL.Query().Get("googleToken")
+	if googleToken == "" {
+		writeJSON(w, http.StatusBadRequest, TokenResponse{
+			StatusCode: http.StatusBadRequest,
+			Message:    "query parameter 'googleToken' is required",
+		})
+		return
+	}
+
+	resp, err := h.tokenService.LoginWithGoogle(googleToken)
+	if err != nil {
+		if errors.Is(err, services.ErrInvalidGoogleToken) {
+			writeJSON(w, http.StatusUnauthorized, TokenResponse{
+				StatusCode: http.StatusUnauthorized,
+				Message:    "invalid or expired Google token",
+			})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, TokenResponse{
+			StatusCode: http.StatusInternalServerError,
+			Message:    "internal server error",
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, TokenResponse{
+		StatusCode: http.StatusOK,
+		Message:    "login successful",
+		Data: &TokenData{
+			AccessToken:  resp.AccessToken,
+			RefreshToken: resp.RefreshToken,
+			UserID:       resp.UserID,
+			Role:         resp.Role,
+		},
+	})
+}
+
 // POST /auth/logout
 func (h *TokenHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	refreshToken := r.Header.Get("X-Refresh-Token")

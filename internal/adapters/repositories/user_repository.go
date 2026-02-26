@@ -54,6 +54,27 @@ func (r *UserRepository) Create(user *domain.User) (*domain.User, error) {
 	return orm.ToDomain(), nil
 }
 
+func (r *UserRepository) FindByGoogleID(googleID string) (*domain.User, error) {
+	var orm UserORM
+	result := r.db.Where("google_id = ?", googleID).First(&orm)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, domain.ErrUserNotFound
+		}
+		return nil, result.Error
+	}
+	return orm.ToDomain(), nil
+}
+
+func (r *UserRepository) Update(user *domain.User) (*domain.User, error) {
+	orm := FromDomain(user)
+	result := r.db.Save(orm)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return orm.ToDomain(), nil
+}
+
 func (r *UserRepository) Delete(id string) error {
 	result := r.db.Where("id = ?", id).Delete(&UserORM{})
 	if result.Error != nil {

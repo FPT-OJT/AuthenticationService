@@ -16,13 +16,15 @@ type TokenService struct {
 	userRepo       ports.UserRepositoryPort
 	tokenPort      ports.TokenPort
 	eventPublisher ports.EventPublisherPort
+	googleVerifier ports.GoogleTokenVerifierPort
 }
 
-func NewTokenService(userRepo ports.UserRepositoryPort, tokenPort ports.TokenPort, eventPublisher ports.EventPublisherPort) *TokenService {
+func NewTokenService(userRepo ports.UserRepositoryPort, tokenPort ports.TokenPort, eventPublisher ports.EventPublisherPort, googleVerifier ports.GoogleTokenVerifierPort) *TokenService {
 	return &TokenService{
 		userRepo:       userRepo,
 		tokenPort:      tokenPort,
 		eventPublisher: eventPublisher,
+		googleVerifier: googleVerifier,
 	}
 }
 
@@ -130,4 +132,67 @@ func (s *TokenService) RefreshToken(refreshToken string) (*services.TokenRespons
 
 func (s *TokenService) Logout(refreshToken string) error {
 	return s.tokenPort.RevokeByRefreshToken(refreshToken)
+}
+
+// LoginWithGoogle verifies the Google ID token, then finds-or-creates the user
+func (s *TokenService) LoginWithGoogle(idToken string) (*services.TokenResponse, error) {
+	payload, err := s.googleVerifier.Verify(idToken)
+	if err != nil {
+		log.Printf("Google token verification failed: %v", err)
+		return nil, services.ErrInvalidGoogleToken
+	}
+
+	user, err := s.handleGoogleCredential(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	refreshToken, err := s.tokenPort.GenerateRefreshToken(user.ID, "", user.Role, false)
+	if err != nil {
+		return nil, err
+	}
+
+	claims, err := s.tokenPort.ExtractClaims(refreshToken)
+	if err != nil {
+		return nil, err
+	}
+	familyToken, _ := claims["family_token"].(string)
+
+	accessToken, err := s.tokenPort.GenerateAccessToken(user.ID, familyToken, user.Role)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Printf("Google login successful for email=%s userID=%s", user.Email, user.ID)
+	return &services.TokenResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		UserID:       user.ID,
+		Role:         user.Role,
+	}, nil
+}
+
+// 1. Find by GoogleID → return existing user
+// 2. Find by email → link GoogleID to existing account
+// 3. Otherwise → create new user
+func (s *TokenService) handleGoogleCredential(payload *ports.GoogleTokenPayload) (*domain.User, error) {
+	// 1. Already linked
+	if user, err := s.userRepo.FindByGoogleID(payload.GoogleID); err == nil {
+		return user, nil
+	}
+
+	// 2. Existing email account — link google id
+	if user, err := s.userRepo.FindByUsernameOrEmail(payload.Email); err == nil {
+		user.GoogleID = payload.GoogleID
+		return s.userRepo.Update(user)
+	}
+
+	// 3. New user
+	newUser := &domain.User{
+		Username: payload.Email,
+		Email:    payload.Email,
+		GoogleID: payload.GoogleID,
+		Role:     "CUSTOMER",
+	}
+	return s.userRepo.Create(newUser)
 }

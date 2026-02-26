@@ -19,6 +19,7 @@ services:
       - REDIS_EXTERNAL_PORT=6379
       - SERVER_PORT=8081
       - RABBITMQ_URL=amqp://${RABBITMQ_ADMIN_USER:-admin}:${RABBITMQ_ADMIN_PASSWORD:-password}@rabbitmq:5672/
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
     ports:
       - "${AUTH_SERVER_PORT:-8081}:8081"
     depends_on:

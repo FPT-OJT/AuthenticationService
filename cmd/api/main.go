@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	googleverifier "authentication-service.com/internal/adapters/google_verifier"
 	"authentication-service.com/internal/adapters/handlers"
 	jwtadapter "authentication-service.com/internal/adapters/jwt_adapter"
 	messagingrabbitmq "authentication-service.com/internal/adapters/messaging/rabbitmq"
@@ -145,7 +146,13 @@ func main() {
 		refreshTokenRepo,
 	)
 
-	tokenService := services_impl.NewTokenService(userRepo, tokenGen, userEventPublisher)
+	googleClientID := pkg.GetEnvAsString("GOOGLE_CLIENT_ID", "")
+	if googleClientID == "" {
+		log.Fatal("FAIL-FAST: GOOGLE_CLIENT_ID environment variable is required")
+	}
+	googleVerifier := googleverifier.NewGoogleTokenVerifier(googleClientID)
+
+	tokenService := services_impl.NewTokenService(userRepo, tokenGen, userEventPublisher, googleVerifier)
 	validate := validator.New()
 	// Use json tag names in validation errors (e.g. "email" instead of "Email")
 	validate.RegisterTagNameFunc(func(fld reflect.StructField) string {
