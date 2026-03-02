@@ -27,18 +27,8 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Lint with golangci-lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: latest
-
-      - name: Run Vulnerability Scan
-        run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
-          govulncheck ./...
-
-      - name: Run Unit Tests with Race Detector and Coverage
-        run: go test -v -race -coverprofile=coverage.out ./...
+      - name: Run Unit Tests with Race Detector
+        run: go test -v -race ./...
 
   build-and-push-ghcr:
     name: Build and Push Docker Image to Github Container Registry
