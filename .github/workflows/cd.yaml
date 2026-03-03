@@ -1,0 +1,31 @@
+name: Authentication-Service CD Flow
+
+on:
+  workflow_run:
+    workflows: ["Authentication-Service CI Flow"]
+    types:
+      - completed
+    branches:
+      - main
+
+jobs:
+  deploy-to-production:
+    name: Deploy to Production Server
+    runs-on: ubuntu-latest
+
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Execute Deployment via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          IMAGE_TAG: ${{ github.event.workflow_run.head_sha }}
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: IMAGE_TAG
+          script: |
+            set -e
+            cd /Users/hork/Downloads/GitOps-Manifest/
+            IMAGE_TAG=$IMAGE_TAG gmake up-authentication-service
